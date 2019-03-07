@@ -1,0 +1,576 @@
+---
+title: 'WORKSHOP: Data Manipulation with R'
+author: "Kadir Senkaya"
+date: "March 8, 2019"
+output:
+  html_document:
+    highlight: zenburn
+    theme: flatly
+    toc: yes
+  html_notebook:
+    code_folding: hide
+    fig_height: 5
+    fig_width: 7
+    highlight: zenburn
+    theme: flatly
+    toc: yes
+editor_options:
+  chunk_output_type: inline
+---
+# DATA MANIPULATION WITH R
+
+> *Data manipulation means moving the same data into different arrangements without changing the actual values.* 
+
+Data isn't always in the exact format you want when you get it. In order to ask meaningful questions about data, you will often need to re-arrange data in your dataframe.
+
+> *The Tidyverse, a collection of R packages built around the foundational idea that data in a table should have one variable per column, one observation per row and only one value per cell.*
+
+One of the packages in the Tidyverse is `dplyr`, which is a package for getting at parts of your data in a fast, easy-to-understand way. 
+
+**Dplyr** aims to provide a function for each basic verb of data manipulation:
+
+- `filter()` selects observations based on their values.
+- `arrange()` reorders the rows
+- `select()` and `rename()` select variables based on their names
+- `mutate()` and `transmute()` create new variables with functions of existing variables.
+- `summarise()` collapses many values down to a single summary.
+
+In this session, we're going to learn about how to do data manipulation with R by using `dplyr` package.
+
+******
+
+### Get our workspace ready
+
+```{r echo =TRUE, warning=FALSE, results='hide', error=TRUE}
+# Install all of the tidyverse packages
+install.packages("tidyverse")
+
+```
+
+```{r}
+# Load the core set of tidyverse packages
+library(tidyverse)
+```
+
+These eight packages are considered the "core" of the tidyverse because:
+
+- They are the most used tidyverse packages.
+- They are often used together as a set (when you use one of the packages, you tend to also use the others).
+- You can still load each of these packages individually with `library()`
+
+### Using pipes in your analysis
+
+Before we start, let's first introduce a very nifty tool that gets loaded along with the `dplyr` package: the pipe operator `%>%`
+
+A pipe chain always starts with your initial dataframe and then you apply a suite of functions. You don't have to call the object every time.
+
+```{r}
+c(1,2,5,5,10) %>% # concatenate these five numbers and then...
+    mean() %>% # get the mean and then...
+    prod(5) # multiply by five
+
+```
+
+```{r}
+# This does the same thing as the above code, but is much harder to read and debug
+prod(mean(c(1,2,5,5,10)),5)
+
+```
+
+Note that pipes do not change the things you put into the pipes. Unless you re-assign the output of a set of piped operations to the same variable you fed into it, your inital variable won't be changed.
+
+Piping is very helpful when we're working with a dataset because it lets us quickly apply several functions in order. For example, we may want to get a list of the names of all the columns in our data frame in alphabetical order. To do this we need to:
+
+- get the names of the columns in our data frame
+- sort them alphabetically
+
+With pipes, we can do this in one call, but broken up over multiple lines where each line does exactly one thing.
+
+```{r}
+# Get a list of all column names in alphabetic order 
+columnsAlphaOrder <- iris %>% # take the data and...
+    names() %>% # get the column names and...
+    sort() # sort alphabetically
+
+# Print the first six results
+head(columnsAlphaOrder)
+
+```
+
+> **Do you have to have a new line after a `%>%`?** 
+Nope! It's just convention that you have a new line that's indented after a `%>%`. It makes it a little easier to read, but it won't break your code if you don't do it.
+
+******
+
+## 1. Import and Explore the Data
+
+To learn the basic data manipulation verbs of dplyr, we'll use `nycflights13::flights`. This data frame contains all 336,776 flights that departed from New York City in 2013. The data comes from the US Bureau of Transportation Statistics, and is documented in `?flights`
+
+```{r echo =TRUE, warning=FALSE, results='hide', error=TRUE}
+install.packages("nycflights13")
+library(nycflights13)
+```
+
+
+```{r}
+flights <- nycflights13::flights
+flights
+
+```
+
+You might notice that this data frame prints a little differently from other data frames: it only shows the first few rows and all the columns that fit on one screen.
+
+Tibbles are simple data frames, but slightly tweaked to work better in the tidyverse. 
+
+```{r}
+# Let's look at the whole dataset
+View(flights)
+
+```
+
+```{r}
+# Explore the dataset
+str(flights)
+
+```
+
+```{r}
+# A better alternative from tidyverse
+glimpse(flights)
+
+```
+
+
+******
+
+
+## 2. Select Columns
+
+Often you work with large datasets with many columns but only a few are actually of interest to you. 
+
+To select a few columns just add their names in the select statement. The order in which you add them, will determine the order in which they appear in the output.
+
+```{r}
+# Select columns by name
+flights %>%
+  select(year, month, day)
+
+```
+
+
+Another way of selecting columns/variables is by specifying a range of columns:
+```{r}
+# Select all columns between year and day, besides that columns between dep_time and arr_time
+flights %>%
+  select(year:day, dep_time:arr_time)
+
+```
+
+
+To deselect columns you can add a minus sign in front of the column name. You can also deselect chunks of columns.
+```{r}
+# Select all columns except those from year to day
+flights %>%
+select(-(year:day))
+```
+
+
+If you have a lot of columns with a similar structure you can use partial matching by adding `starts_with()`, `ends_with()` or `contains()` in your select statement.
+
+```{r}
+# Select columns start with "arr"
+flights_begin_arr <- flights %>% 
+  select(starts_with("arr"))
+flights_begin_arr
+
+```
+
+
+```{r}
+# Select columns end with "delay"
+flights_delays <- flights %>% 
+  select(ends_with("delay"))
+flights_delays
+
+```
+
+
+```{r}
+# Select columns contain "time"
+flights %>% 
+  select(contains("time"))
+
+```
+
+
+We can also select columns by their data type.
+For instance you can select all string columns by using `select_if(is.character)`. Similarly, you can add `is.numeric`, `is.integer`, `is.double`, `is.logical`, `is.factor`.
+
+```{r}
+# Select character columns
+flights %>% 
+  select_if(is.character)
+
+```
+
+
+You can use the `select()` function to re-order columns as well.
+If you are just moving a few columns to the front, you can use `everything()` afterwards which will add all the remaining columns and save a lot of typing.
+
+```{r}
+flights_reorder <- flights %>% 
+  select(year, month, day, hour, minute, time_hour, everything())
+
+flights_reorder
+
+```
+
+
+******
+
+
+## 3. Rename Columns
+
+Another useful function is `rename()`, which as you may have guessed renames one column to another name. Suppose we want `dep_time` and `arr_time` to be `departure_time` and `arrival_time` instead.
+
+```{r}
+flights %>%
+  select(dep_time, arr_time) %>%
+  rename(departure_time = dep_time,
+         arrival_time = arr_time)
+
+```
+
+
+#### **Challenge 1**
+
+Select all three of the `dest`, `air_time`, and `distance` variables
+
+```{r}
+# Solution to Challenge 1
+
+
+
+```
+
+
+#### **Challenge 2**
+
+Select columns end with time.
+
+```{r}
+# Solution to Challenge 2
+
+
+
+```
+
+
+******
+
+
+## 4. Filter Rows
+
+In many cases you don’t want to include all rows in your analysis but only a selection of rows. The function to use only specific rows is called `filter()` in dplyr. The general syntax of filter is: `filter(dataset, condition)`
+
+For example, we can select all flights on January 1st with:
+
+```{r}
+flights %>%
+  filter(month == 1, day == 1)
+
+```
+
+
+When you’re starting out with R, the easiest mistake to make is to use `=` instead of `==` when testing for equality. When this happens you’ll get an informative error:
+```{r echo =TRUE, warning=FALSE, results='hide', error=TRUE}
+filter(flights, month = 1)
+```
+
+
+If you want to select a specific group of carriers:
+```{r}
+flights %>%
+  filter(carrier == "AA" | carrier == "UA") 
+
+```
+
+If we want to deselect of a spesific group of destinations:
+```{r}
+# Flights that didn’t go to Burlington BVT or Seattle WA
+flights %>%
+  filter(!(dest == "BTV" | dest == "SEA")) 
+ 
+```
+
+
+We can also filter rows based on a numeric variable:
+```{r}
+# Find carriers have departure delay more than 60 mins
+flights %>%
+    select(carrier, dep_delay) %>%
+    filter(dep_delay > 60) %>%
+    head()
+```
+
+
+Now say we have a large list of airports we want to filter for, say `BTV`, `SEA`, `PDX`, `SFO`, and `BDL`. We could continue to use the `|` or operator as so:
+
+```{r}
+flights %>% 
+  select(carrier:dest) %>% 
+  filter(dest == "BTV" | dest == "SEA" | dest == "PDX" | dest == "SFO" | dest == "BDL")
+
+```
+
+but as we progressively include more airports, this will get cumbersome. A slightly shorter approach uses the `%in%` operator:
+```{r}
+
+flights %>% 
+  select(carrier:dest) %>%
+  filter(dest %in% c("BTV", "SEA", "PDX", "SFO", "BDL"))
+
+```
+
+
+
+#### **Challenge 3**
+
+Filter carriers that are not going to Burlington VT (BTV) nor Seattle WA (SEA).
+
+```{r}
+# Solution to Challenge 3
+
+
+
+```
+
+
+#### **Challenge 4**
+
+Find flights departed from "JFK" airport and were heading to Burlington, Vermont ("BTV") or Seattle, Washington ("SEA") and departed in the months of October, November, or December.
+
+```{r}
+# Solution to Challenge 4
+
+
+
+```
+
+
+
+It might happen that your dataset is not complete, and when information is not available we call it **missing values**. In R the missing values are coded by the symbol `NA`. 
+
+To identify missing values in your dataset the function is `is.na()`
+```{r}
+x <- NA
+is.na(x)
+```
+
+
+To find NA values in a spesific column:
+```{r}
+# Get NA's in arr_time
+flights %>% 
+  select(carrier, flight, arr_time) %>% 
+  filter(is.na(arr_time))
+
+```
+
+
+#### **Challenge 5**
+
+Remove any rows where `dep_time` is `NA`
+
+```{r}
+# Solution to Challenge 5
+
+
+
+```
+
+
+******
+
+
+## 5. Arrange Rows
+
+One of the most common tasks people working with data would like to perform is sort the data frame’s rows in alphanumeric order. 
+
+The default format for numeric variables is to sort **ascending**.
+For string variables, it will sort **alphabetically**.
+
+```{r}
+# Sort the dataset by year, month, day in ascending order
+flights %>% 
+  arrange(year, month, day)
+
+```
+
+
+To order a column in descending order use `desc()`
+```{r}
+# Sort the dataset by arr_delay in descending order
+flights %>% 
+  arrange(desc(arr_delay))
+
+```
+
+
+******
+
+
+## 6. Add New Columns
+
+One thing you will often want to do with datasets is to add new variables/columns.
+
+That’s the job of `mutate()`.
+
+`mutate()` always adds new columns at the end of your dataset, so we’ll start by creating a narrower dataset to see new variables.
+
+```{r}
+# Create a small dataset from the existing dataset
+flights_sml <- select(flights, 
+  year:day, 
+  ends_with("delay"), 
+  distance, 
+  air_time
+)
+
+```
+
+
+Passengers are often frustrated when their flights depart late, but sometimes the flights arrive their destinations before the original arrival time.
+```{r}
+# Find out gained time and speed in the air
+flights_sml <- flights_sml %>% 
+  mutate(gain = dep_delay - arr_delay, # gained time
+         speed = distance / air_time * 60) # miles per hour
+
+flights_sml
+
+```
+
+
+If you only want to keep the new variables, use `transmute()`:
+
+```{r}
+flights_sml %>% 
+  transmute(gain = dep_delay - arr_delay, 
+         speed = distance / air_time * 60) 
+```
+
+
+#### **Challenge 6**
+
+Create columns following: `hours` spent time in the air and `gain_per_hour` in `flights_sml` table.
+
+Note that `air_time` is in minutes.
+
+```{r}
+# Solution to Challenge 6
+
+
+
+```
+
+******
+
+## 7. Summarise Variables
+
+We've already covered a lot of ways of interacting with data, but so far we've just been shuffling our data around and adding things to it. We haven't really touched on one of the core parts of data analysis: summarising data.
+
+The `summarise()` works with nearly any aggregate function, and allows for additional arithmetics:
+
++ `n()`: gives the number of observations
++ `n_distinct()`: gives the numbers of unique values
++ `sum(var)`, `max(var)`, `min(var)`, `mean(var)`, `median(var)`, `sd(var)`...
+
+
+```{r}
+# Find the average departure delay
+flights %>% 
+  summarise(delay = mean(dep_delay, na.rm = TRUE))
+
+```
+We’ll come back to what that `na.rm = TRUE` means very shortly.
+
+
+In most cases, we don’t just want to summarise the whole dataset, but we want to get summaries by a group.
+
+For example, if we applied exactly the same code to our data grouped by date, we get the average delay per date:
+
+```{r}
+# The average delay per date
+by_day <- flights %>%
+  group_by(year, month, day) %>% 
+  summarise(delay = mean(dep_delay, na.rm = TRUE))
+
+by_day
+
+```
+
+
+You may have wondered about the `na.rm` argument we used above. What happens if we don’t set it?
+
+```{r}
+# We get a lot of missing values
+flights %>% 
+  group_by(year, month, day) %>% 
+  summarise(mean = mean(dep_delay))
+
+```
+
+If there’s any missing value in the input, the output will be a missing value.
+We need set the `na.rm` argument to `TRUE`, this will ignore any `NA` missing values and only return the summary value for all non-missing values.
+
+
+
+Whenever you do any aggregation, it’s always a good idea to include a **count**.
+For example, let’s look at the planes (identified by their tail number) that have the highest average delays: 
+
+```{r}
+# The highest average delays for each plane
+delays <- flights %>%
+  group_by(tailnum) %>% 
+  summarise(
+    count = n(), # number of flights
+    delay = mean(arr_delay, na.rm = TRUE)) %>% 
+  arrange(desc(delay))
+
+delays
+
+```
+
+
+#### **Challenge 7**
+Count the total number of flights each day and sort in order of busiest days for each month.
+
+```{r}
+# Solution to Challenge 7
+
+
+
+```
+
+
+`count()` is a short-hand for `group_by()` and `n()`.
+```{r}
+# Alternative Solution to Challenge 7
+
+  
+```
+
+
+#### **Challenge 8**
+
+How many flights have a missing dep_time?
+
+```{r}
+# Solution to Challenge 5
+
+
+
+```
+
+
